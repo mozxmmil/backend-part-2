@@ -19,7 +19,7 @@ const userschema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [ture, "password is required"],
+      required: [true, "password is required"],
     },
     name: {
       type: String,
@@ -83,4 +83,7 @@ userschema.methods.generateRefreshToken = function () {
     }
   );
 };
-const user = mongoose.model("User", userschema);
+
+const User = mongoose.model("User", userschema);
+
+export default User;

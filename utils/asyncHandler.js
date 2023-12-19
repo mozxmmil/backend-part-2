@@ -9,8 +9,12 @@
 //     }
 // }
 
-export const asynHandler = (pormisehandler) => async (req, res, next) => {
-  
-    Promise.resolve(pormisehandler(req, res, next))
-    .catch((error) => next(error));
+const asyncHandler = (promiseHandler) => async (req, res, next) => {
+  try {
+    await Promise.resolve(promiseHandler(req, res, next));
+  } catch (error) {
+    next(error);
+  }
 };
+
+export default asyncHandler;

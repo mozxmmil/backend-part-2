@@ -6,7 +6,7 @@ const connectdb = async () => {
     const mozammil = await mongoose.connect(process.env.MONGODB_URI);
     console.log(` data base connected ${mozammil.connection.host}`);
   } catch (error) {
-    console.log("err", error);
+    console.log("data base connection error:", error);
   }
 };
 export default connectdb;
