@@ -30,6 +30,7 @@ const userschema = new mongoose.Schema(
     avtar: {
       type: String,
       required: true,
+      
     },
     coverImage: {
       type: String,
@@ -46,7 +47,7 @@ const userschema = new mongoose.Schema(
 );
 
 userschema.pre("save", async function (next) {
-  if (!this.modified("password")) {
+  if (!this.isModified("password")) {
     return next();
   }
   this.password = await bcrypt.hash(this.password, 10);
