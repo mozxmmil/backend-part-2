@@ -1,124 +1,229 @@
 import asynHandler from "../utils/asyncHandler.js";
 import user from "../models/user.model.js";
-import { ApiError } from "../utils/apierrorsHandle.js";
-// import {uploadOnCloudinary} from "../utils/cloudinary.js"
-import { ApiResponce } from "../utils/apiResponce.js";
-import { v2 as cloudinary } from "cloudinary";
+import {ApiError} from "../utils/apierrorsHandle.js";
+import {ApiResponce} from "../utils/apiResponce.js";
+import {v2 as cloudinary} from "cloudinary";
 import fs from "fs";
+import jwt from "jsonwebtoken";
+
+///yaha pe ham log ak method bna rhe hai jisse assani hoe..!!!!
 const GenrateAccesTOkenandRefreshToken = async (userid) => {
-  const User = await user.findById(userid)
-  const accestoken =  Userser.generateAuthToken()
-  const refreshtoken =  User.generateRefreshToken()
-  User.refreshtoken = refreshtoken
-  await User.save({
-    
-  })
-  /// yaha pe ham usermodel se accestoken aur refresh token gerrate kr rhe hai !!
-  /// uske liye ak method bana rhe hai...
+    let User = await user.findById(userid);
+    let accesTOken = await User.generateAuthToken();
+    let refreshToken = await User.generateRefreshToken();
+    User.refreshToken = refreshToken;
+    await User.save({
+        validateBeforeSave: false,
+    });
+   
+    return {accesTOken, refreshToken}
+    /// yaha pe ham usermodel se accestoken aur refresh token gerrate kr rhe hai !!
+    /// uske liye ak method bana rhe hai...
 };
 const registerUser = asynHandler(async (req, res) => {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_CLOUD_KEY,
-    api_secret: process.env.CLOUDINARY_CLOUD_SECRET,
-  });
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_CLOUD_KEY,
+        api_secret: process.env.CLOUDINARY_CLOUD_SECRET,
+    });
 
-  const { username, email, password, name } = req.body;
+    const {username, email, password, name} = req.body;
 
-  if ([username, email, password, name].some((filed) => filed?.trim() === "")) {
-    throw new ApiError(400, "All fields are required");
-  }
-  const finduser = await user.findOne({
-    //$or ka use multiple condition in query ke liye use kiya jaa rha hai...
-    $or: [{ username }, { email }],
-  });
-  if (finduser) throw new ApiError(400, "User already exists");
+    if (
+        [username, email, password, name].some((filed) => filed?.trim() === "")
+    ) {
+        throw new ApiError(400, "All fields are required");
+    }
+    const finduser = await user.findOne({
+        //$or ka use multiple condition in query ke liye use kiya jaa rha hai...
+        $or: [{username}, {email}],
+    });
+    if (finduser) throw new ApiError(400, "User already exists");
 
-  let localavtar = req.files?.avtar[0]?.path;
-  console.log(localavtar);
-  // let localcoverImage
-  let localcoverImage;
-  if (
-    req.files &&
-    Array.isArray(req.files.coverImage) &&
-    req.files.coverImage.length > 0
-  ) {
-    localcoverImage = req.files.coverImage[0].path;
-  }
+    let localavtar = req.files?.avtar[0].path;
+    let localcoverImage = req.files?.coverImage[0].path;
+    // let localcoverImage
+    // let localcoverImage;
+    // if (
+    //     req.files &&
+    //     Array.isArray(req.files.coverImage) &&
+    //     req.files.coverImage.length > 0
+    // ) {
+    //     localcoverImage = req.files.coverImage[0].path;
+    // }
 
-  if (!localavtar) {
-    throw new ApiError(401, "avtar required");
-  }
+    if (!localavtar) {
+        throw new ApiError(401, "avtar required");
+    }
 
-  const avtar = await cloudinary.uploader.upload(localavtar, {
-    resource_type: "image",
-  });
+    const avtar = await cloudinary.uploader.upload(localavtar, {
+        resource_type: "image",
+    });
 
-  if (!avtar) {
-    throw new ApiError(400, "avtar not uploaded nhi hua");
-  }
+    if (!avtar) {
+        throw new ApiError(400, "avtar not uploaded nhi hua");
+    }
 
-  fs.unlinkSync(localavtar);
-  if (!avtar) {
     fs.unlinkSync(localavtar);
-  }
+    if (!avtar) {
+        fs.unlinkSync(localavtar);
+    }
 
-  // Optionally rethrow the error or handle it further
-  // throw new ApiError(500, "Unexpected error during avatar upload");
+    // Optionally rethrow the error or handle it further
+    // throw new ApiError(500, "Unexpected error during avatar upload");
 
-  //upload the file on cloudinary
+    //upload the file on cloudinary
 
-  const coverImage = await cloudinary.uploader.upload(localcoverImage, {
-    resource_type: "image",
-  });
-  fs.unlinkSync(localcoverImage);
-  if (!coverImage) {
+    const coverImage = await cloudinary.uploader.upload(localcoverImage, {
+        resource_type: "image",
+    });
     fs.unlinkSync(localcoverImage);
-  }
+    if (!coverImage) {
+        fs.unlinkSync(localcoverImage);
+    }
 
-  if (!avtar) throw new ApiError(400, "avtar not uploaded nhi hua");
-  if (!coverImage) throw new ApiError(400, "coverImage not uploaded nhi hua");
+    if (!avtar) throw new ApiError(400, "avtar not uploaded nhi hua");
+    if (!coverImage) throw new ApiError(400, "coverImage not uploaded nhi hua");
 
-  const usermodel = await user.create({
-    username,
-    email,
-    password,
-    name,
-    avtar: avtar.url,
-    coverImage: coverImage?.url || "",
-  });
+    const usermodel = await user.create({
+        username,
+        email,
+        password,
+        name,
+        avtar: avtar.url,
+        coverImage: coverImage?.url || "",
+    });
 
-  if (!usermodel) {
-    throw new ApiError(500, "something went wrong while creating user");
-  }
-  const createduser = await user
-    .findById(usermodel._id)
-    .select("-password -refreshToken");
+    if (!usermodel) {
+        throw new ApiError(500, "something went wrong while creating user");
+    }
+    const createduser = await user
+        .findById(usermodel._id)
+        .select("-password -refreshToken");
 
-  //select ka use kisi ko password ko refreshToken ko nhi hai...
-  if (!createduser) {
-    throw new ApiError(500, "something went wrong while password not delete");
-  }
+    //select ka use kisi ko password ko refreshToken ko nhi hai...
+    if (!createduser) {
+        throw new ApiError(
+            500,
+            "something went wrong while password not delete"
+        );
+    }
 
-  return res
-    .status(201)
-    .json(new ApiResponce(200, createduser, "User created successfully"));
+    return res
+        .status(201)
+        .json(new ApiResponce(200, createduser, "User created successfully"));
 });
 
 const Loginuser = asynHandler(async (req, res) => {
-  const { username, email, password } = req.body;
-  if (!username || !email) {
-    throw new ApiError(400, "username or email is required");
-  }
-  const finduser = await user.findOne({
-    $or: [{ username }, { email }],
-  });
+    const {username, email, password} = req.body;
+  
+    if (!username && !email) {
+        throw new ApiError(400, "username or email is required");
+    }
+    const finduser = await user.findOne({
+        $or: [{username}, {email}],
+    });
+    if (!finduser) throw new ApiError(400, "User not found");
 
-  if (!finduser) throw new ApiError(400, "User not found");
+    ///user aur email to mil gya hai per password bhi check krna hai!!
 
-  ///user aur email to mil gya hai per password bhi check krna hai!!
-  const ispasswordVaild = await finduser.ispasswordCorrect(password);
-  if (!ispasswordVaild) throw new ApiError(401, "password is not correct");
+    const ispasswordVaild = await finduser.ispasswordCorrect(password);
+    if (!ispasswordVaild) throw new ApiError(401, "password is not correct");
+
+    ///yaha pe ham log accestoken and refresh token le rhe hai...
+    const accesToken = await GenrateAccesTOkenandRefreshToken(finduser._id);
+   const  refreshToken = await GenrateAccesTOkenandRefreshToken(
+       finduser._id);
+ 
+       
+
+    ///yaha pe ham ak aur baar database query maar rhe hai
+    ///kew ki line num: 115 me finduser mila hai usme refres token empty hai kew ki
+    ///line 126 me hamne refrsh token ke method ko call kiya hai
+
+    ///is liye hame fir se database query marna pdega !!!
+
+    const loginuser = await user
+        .findById(finduser._id)
+        .select("-password -refreshToken");
+
+    ///ab hame cookie bhejna hai
+    ////uske liye hame phle ak object banan pdega /// basicaly iska kaam bas itna hota hai
+    //! ki frontend se koi bhi cookie read kr skta hai but right nhi kr skta
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+    };
+    ///yaha pe ham cookie bhejenge ...
+    return res
+        .status(200)
+        .cookie("accesToken", accesToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+            new ApiResponce(
+                2001,
+                {
+                    user: loginuser,
+                    accesToken,
+                    refreshToken,
+                },
+                "login sussefully "
+            )
+        );
 });
 
-export { registerUser, Loginuser };
+const Logoutuser = asynHandler(async (req, res) => {
+    user.findByIdAndUpdate(
+        req.User._id,
+        {
+            $set: {
+                refreshToken: undefined,
+            },
+        },
+        {
+            new: true,
+        }
+    );
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+    };
+    res.status(200)
+        .clearCookie("accesToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponce(200, {}, "user is logout"));
+});
+
+const refreshAccessToken = asynHandler(async (req, res) => {
+    const token = req.cookie?.refreshToken || req.body?.refreshToken;
+    console.log(token);
+    if (!token) throw new ApiError(400, "refresh token nhi mila");
+
+    const decodedToken = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+    const User = await user.findById(decodedToken._id);
+    if (!User) throw new ApiError(401, "invalid user");
+
+    if(token !== User.refreshToken)
+    {
+        throw new ApiError(400,"token and user not match")
+    }
+    const options = {
+        httpOnly:true,
+        secure:true
+    }
+   const {accesToken,refreshToken} = await GenrateAccesTOkenandRefreshToken(User._id)
+   return res
+       .status(200)
+       .cookie("accesToken", accesToken, options)
+       .cookie("refreshToken", refreshToken, options)
+       .json(
+           new ApiResponce(201, {
+               accesToken,
+               refreshToken,
+           },
+           "sussefull")
+       );
+});
+export {registerUser, Loginuser, Logoutuser, refreshAccessToken};
