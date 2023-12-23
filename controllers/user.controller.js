@@ -9,14 +9,14 @@ import jwt from "jsonwebtoken";
 ///yaha pe ham log ak method bna rhe hai jisse assani hoe..!!!!
 const GenrateAccesTOkenandRefreshToken = async (userid) => {
     let User = await user.findById(userid);
-    let accesTOken = await User.generateAuthToken();
-    let refreshToken = await User.generateRefreshToken();
+    const accesToken = await User.generateAuthToken();
+    const refreshToken = await User.generateRefreshToken();
     User.refreshToken = refreshToken;
     await User.save({
         validateBeforeSave: false,
     });
    
-    return {accesTOken, refreshToken}
+    return {accesToken, refreshToken};
     /// yaha pe ham usermodel se accestoken aur refresh token gerrate kr rhe hai !!
     /// uske liye ak method bana rhe hai...
 };
@@ -131,9 +131,8 @@ const Loginuser = asynHandler(async (req, res) => {
     if (!ispasswordVaild) throw new ApiError(401, "password is not correct");
 
     ///yaha pe ham log accestoken and refresh token le rhe hai...
-    const accesToken = await GenrateAccesTOkenandRefreshToken(finduser._id);
-   const  refreshToken = await GenrateAccesTOkenandRefreshToken(
-       finduser._id);
+   const {accesToken, refreshToken} =
+       await GenrateAccesTOkenandRefreshToken(finduser._id);
  
        
 

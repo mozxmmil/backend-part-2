@@ -4,12 +4,15 @@ import jwt from "jsonwebtoken";
 import user from "../models/user.model.js";
 export const vetifyjwt = asyncHandler(async (req, res, next) => {
     const token =
-        req.cookies || req.headers.authorization?.replace("Bearer ", "");
-     console.log(typeof token);
+        req.cookies?.accesToken.accesTOken ||
+        req.headers.authorization?.replace("Bearer ", "");
+    //  const newtoken = JSON.stringify(token);
+    //  console.log(typeof newtoken);
+
     if (!token) throw new ApiError(401, "Unauthorized request");
 
-    const decodedToken = jwt.verify(token, "mo123zamil");
-    
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+
     if (!decodedToken) {
         throw new ApiError(401, "Decoded token not found");
     }
