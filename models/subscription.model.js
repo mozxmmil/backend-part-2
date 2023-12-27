@@ -9,3 +9,5 @@ import mongoose from "mongoose";
          ref: "User",
      },
  });
+
+export const  subscriber = mongoose.model("Subscriber",subscriptionschema);

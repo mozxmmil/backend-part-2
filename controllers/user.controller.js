@@ -5,6 +5,8 @@ import {ApiResponce} from "../utils/apiResponce.js";
 import {v2 as cloudinary} from "cloudinary";
 import fs from "fs";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+
 
 ///yaha pe ham log ak method bna rhe hai jisse assani hoe..!!!!
 const GenrateAccesTOkenandRefreshToken = async (userid) => {
@@ -292,7 +294,7 @@ const updateUserAvatar = asynHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponce(200,user, "avtar update sussessufll"));
+        .json(new ApiResponce(200, user, "avtar update sussessufll"));
 });
 
 const updateUserCoverImage = asynHandler(async (req, res) => {
@@ -318,8 +320,116 @@ const updateUserCoverImage = asynHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponce(200,user, "cover imgage update sussessufll"));
+        .json(new ApiResponce(200, user, "cover imgage update sussessufll"));
 });
+
+const getUserChannelProfiel = asynHandler(async (req, res) => {
+    const {username} = req.params;
+    if (!username) throw new ApiError(400, "prarams username not found");
+    const channel = await user.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase(), //yaha pe kis field se match krna hai ye batana rhta hai..
+            },
+        },
+        {
+            $lookup: {
+                from: "subscribers", //iska mtlb ye hai ki kaha se lena hai field..
+                localField: "_id", //iska mtlb kis basses pe search krna hai ...
+                foreignField: "channel", //iska mtlb ye hai ki ///subscriber model me se kon sa field choose krna hai ..
+                as: "subscriber", //iska mtlb ! kuch bhi naam de skte hai.
+            },
+        },
+        {
+            $lookup: {
+                from: "subscribers", //iska mtlb ye hai ki kaha se lena hai field..
+                localField: "_id", //iska mtlb kis basses pe search krna hai ...
+                foreignField: "subscriber", //iska mtlb ye hai ki ///subscriber model me se kon sa field choose krna hai ..
+                as: "subscribedto", //iska mtlb ! kuch bhi naam de skte hai.
+            },
+        },
+        {
+            $addFields: {
+                subscribercount: {
+                    $size: "$subscriber", //yaha pe "as:" ka naam aya hai
+                },
+                channelsubscribetocount: {
+                    $size: "$subscribedto",
+                },
+                isssubscribe: {
+                    $cond: {
+                        if: {$in: [req.user?._id, "$subscriber.subscriber"]},
+                        then: true,
+                        else: false,
+                    }, //$cond ka use conditon ka use krta hai
+                },
+            },
+        },
+        {
+            $project: {
+                name: 1,
+                username: 1,
+                subscribercount: 1,
+                channelsubscribetocount: 1,
+                isssubscribe: 1,
+                avtar: 1,
+                coverImage: 1,
+                email: 1,
+            },
+        },
+    ]); 
+    // yaha pe {} isme pipe line likha jata hai...
+    if(!channel?.length) throw new ApiError(400,"channel not found")
+    return res.status(200)
+.json(new ApiResponce(200,channel[0],"user channel fetched sussesfully"))
+
+});
+
+const getWatchHistory  = asynHandler(async(req,res)=>{
+    const user = await user.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id),
+            },
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: " users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        name: 1,
+                                        username: 1,
+                                        avtar: 1,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        $addFields:{
+                            owner:{
+                                $first:"$owner"
+                            }
+                        }
+                    }
+                ],
+            },
+        },
+    ]);
+
+    return res.status(200).json(new ApiResponce(200, user[0].watchHistory,"watch history fetched sussefully"));
+})
 
 export {
     registerUser,
@@ -331,4 +441,6 @@ export {
     updateAccountdetails,
     updateUserAvatar,
     updateUserCoverImage,
+    getUserChannelProfiel,
+    getWatchHistory,
 };
